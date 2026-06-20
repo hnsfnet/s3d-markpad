@@ -6,6 +6,7 @@
   const AUTOSAVE_DELAY = 500;
   const PREVIEW_DELAY = 300;
   const SEARCH_DELAY = 200;
+  const LONG_CONTENT_THRESHOLD = 2000;
 
   let state = {
     notes: [],
@@ -21,6 +22,8 @@
   let previewTimer = null;
   let searchTimer = null;
   let editingFolderId = null;
+  let isComposing = false;
+  let isSwitchingNote = false;
 
   const elements = {
     folderTree: document.getElementById('folderTree'),
@@ -371,10 +374,25 @@
   }
 
   function updatePreview(content) {
-    if (previewTimer) clearTimeout(previewTimer);
+    if (previewTimer) {
+      clearTimeout(previewTimer);
+      previewTimer = null;
+    }
+    
+    const contentLength = content.length;
+    let delay = PREVIEW_DELAY;
+    
+    if (contentLength > LONG_CONTENT_THRESHOLD * 3) {
+      delay = 800;
+    } else if (contentLength > LONG_CONTENT_THRESHOLD * 2) {
+      delay = 600;
+    } else if (contentLength > LONG_CONTENT_THRESHOLD) {
+      delay = 450;
+    }
+    
     previewTimer = setTimeout(() => {
       elements.preview.innerHTML = parseMarkdown(content);
-    }, PREVIEW_DELAY);
+    }, delay);
   }
 
   function getFolderById(folderId) {
@@ -453,13 +471,28 @@
     
     if (!confirm(confirmMsg)) return;
     
+    if (autosaveTimer) {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    if (previewTimer) {
+      clearTimeout(previewTimer);
+      previewTimer = null;
+    }
+    
+    saveToStorage(true);
+    
     state.notes = state.notes.filter(n => n.folderId !== folderId);
     state.folders = state.folders.filter(f => f.id !== folderId);
     state.expandedFolders.delete(folderId);
     
     if (state.activeNoteId && getActiveNote()?.folderId === folderId) {
+      isSwitchingNote = true;
       state.activeNoteId = null;
       updateEditorContent();
+      setTimeout(() => {
+        isSwitchingNote = false;
+      }, 0);
     }
     
     renderFolderTree();
@@ -721,15 +754,41 @@
   }
 
   function setActiveNote(noteId) {
+    if (state.activeNoteId === noteId) return;
+    
+    if (autosaveTimer) {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    if (previewTimer) {
+      clearTimeout(previewTimer);
+      previewTimer = null;
+    }
+    
     saveToStorage(true);
+    
+    isSwitchingNote = true;
     state.activeNoteId = noteId;
     renderFolderTree();
     updateEditorContent();
     updateEmptyState();
     saveToStorage(true);
+    
+    setTimeout(() => {
+      isSwitchingNote = false;
+    }, 0);
   }
 
   function addNote() {
+    if (autosaveTimer) {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    if (previewTimer) {
+      clearTimeout(previewTimer);
+      previewTimer = null;
+    }
+    
     saveToStorage(true);
     
     const newNote = {
@@ -747,12 +806,14 @@
     state.notes.push(newNote);
     state.activeNoteId = newNote.id;
     
+    isSwitchingNote = true;
     renderFolderTree();
     updateEditorContent();
     updateEmptyState();
     saveToStorage(true);
     
     setTimeout(() => {
+      isSwitchingNote = false;
       elements.editor.focus();
       elements.editor.setSelectionRange(2, 5);
     }, 50);
@@ -767,9 +828,21 @@
       return;
     }
     
+    if (autosaveTimer) {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    if (previewTimer) {
+      clearTimeout(previewTimer);
+      previewTimer = null;
+    }
+    
+    saveToStorage(true);
+    
     state.notes = state.notes.filter(n => n.id !== noteId);
     
     if (state.activeNoteId === noteId) {
+      isSwitchingNote = true;
       if (state.notes.length > 0) {
         state.activeNoteId = state.notes[0].id;
         updateEditorContent();
@@ -778,6 +851,9 @@
         updateEditorContent();
       }
       updateEmptyState();
+      setTimeout(() => {
+        isSwitchingNote = false;
+      }, 0);
     }
     
     renderFolderTree();
@@ -818,6 +894,8 @@
   }
 
   function onEditorInput() {
+    if (isSwitchingNote) return;
+    
     const note = getActiveNote();
     if (!note) return;
     
@@ -825,24 +903,39 @@
     note.content = content;
     note.updatedAt = Date.now();
     
-    elements.noteTitleInput.value = extractTitle(content);
+    const title = extractTitle(content);
+    if (elements.noteTitleInput.value !== title) {
+      elements.noteTitleInput.value = title;
+    }
     
-    updatePreview(content);
     updateNotePath();
     
-    if (state.searchQuery.trim()) {
-      renderFolderTree();
-    } else {
-      const noteElement = document.querySelector('.note-item[data-id="' + note.id + '"]');
-      if (noteElement) {
-        const titleEl = noteElement.querySelector('.note-item-title');
-        const previewEl = noteElement.querySelector('.note-item-preview');
-        if (titleEl) titleEl.textContent = extractTitle(content);
-        if (previewEl) previewEl.textContent = extractPreview(content);
+    if (!isComposing) {
+      updatePreview(content);
+      
+      if (state.searchQuery.trim()) {
+        renderFolderTree();
+      } else {
+        const noteElement = document.querySelector('.note-item[data-id="' + note.id + '"]');
+        if (noteElement) {
+          const titleEl = noteElement.querySelector('.note-item-title');
+          const previewEl = noteElement.querySelector('.note-item-preview');
+          if (titleEl) titleEl.textContent = title;
+          if (previewEl) previewEl.textContent = extractPreview(content);
+        }
       }
     }
     
     saveToStorage();
+  }
+
+  function onCompositionStart() {
+    isComposing = true;
+  }
+
+  function onCompositionEnd() {
+    isComposing = false;
+    onEditorInput();
   }
 
   function onTitleInput() {
@@ -1027,6 +1120,8 @@ console.log(greet('Markdown'));
     elements.newNoteBtn.addEventListener('click', addNote);
     elements.newFolderBtn.addEventListener('click', addFolder);
     elements.editor.addEventListener('input', onEditorInput);
+    elements.editor.addEventListener('compositionstart', onCompositionStart);
+    elements.editor.addEventListener('compositionend', onCompositionEnd);
     elements.noteTitleInput.addEventListener('change', onTitleInput);
     elements.searchInput.addEventListener('input', onSearchInput);
     elements.searchClear.addEventListener('click', clearSearch);
