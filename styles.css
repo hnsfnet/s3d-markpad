@@ -151,16 +151,28 @@ body {
   color: var(--text-primary);
 }
 
-#themeToggle {
+#themeToggle,
+.theme-toggle {
   background-color: transparent;
   color: var(--text-primary);
   border: 1px solid var(--border);
   width: 36px;
   height: 36px;
   padding: 0;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
 }
 
-#themeToggle:hover {
+#themeToggle:hover,
+.theme-toggle:hover {
   background-color: var(--bg-hover);
   color: var(--accent);
   border-color: var(--accent);
@@ -503,6 +515,28 @@ body.dark .search-highlight {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  position: relative;
+}
+
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.editor-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.preview-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .top-bar {
@@ -629,7 +663,8 @@ body.dark .search-highlight {
   background: var(--text-muted);
 }
 
-.splitter-horizontal {
+.splitter-horizontal,
+.resizer {
   height: 4px;
   background-color: var(--bg-sidebar);
   cursor: row-resize;
@@ -638,7 +673,9 @@ body.dark .search-highlight {
 }
 
 .splitter-horizontal:hover,
-.splitter-horizontal.dragging {
+.splitter-horizontal.dragging,
+.resizer:hover,
+.resizer.dragging {
   background-color: var(--accent);
 }
 
