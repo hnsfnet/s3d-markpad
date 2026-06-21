@@ -51,12 +51,18 @@ export function useTheme() {
     return 'light';
   }
 
+  function reset() {
+    setState({ theme: 'light' });
+    document.body.classList.remove('dark');
+  }
+
   return {
     getTheme,
     setTheme,
     toggleTheme,
     applyThemeToDOM,
     initFromStorage,
+    reset,
     subscribe
   };
 }

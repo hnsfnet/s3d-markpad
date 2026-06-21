@@ -1,5 +1,5 @@
 import { createStore } from './createStore.js';
-import { generateId, extractTitle } from '../utils/helpers.js';
+import { generateId, extractTitle, extractPreview } from '../utils/helpers.js';
 
 const store = createStore({
   notes: [],
@@ -54,9 +54,12 @@ export function useNotes() {
 
   function addNote(folderId = null) {
     const { notes } = getState();
+    const content = '# 新笔记\n\n开始写作...\n';
     const newNote = {
       id: generateId(),
-      content: '# 新笔记\n\n开始写作...\n',
+      content,
+      title: extractTitle(content),
+      preview: extractPreview(content),
       folderId,
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -99,15 +102,22 @@ export function useNotes() {
     return noteId;
   }
 
+  function getNoteById(noteId) {
+    return getState().notes.find(n => n.id === noteId) || null;
+  }
+
   function updateNoteContent(noteId, content) {
     const { notes } = getState();
     const note = notes.find(n => n.id === noteId);
-    if (!note) return;
+    if (!note) return false;
     
     note.content = content;
+    note.title = extractTitle(content);
+    note.preview = extractPreview(content);
     note.updatedAt = Date.now();
     
     setState({ notes: [...notes] });
+    return true;
   }
 
   function updateNoteFolder(noteId, folderId) {
@@ -130,12 +140,12 @@ export function useNotes() {
   }
 
   function getPreviewDelay(contentLength) {
-    if (contentLength > LONG_CONTENT_THRESHOLD * 3) {
+    if (contentLength > 6000) {
       return 800;
-    } else if (contentLength > LONG_CONTENT_THRESHOLD * 2) {
-      return 600;
-    } else if (contentLength > LONG_CONTENT_THRESHOLD) {
-      return 450;
+    } else if (contentLength > 4000) {
+      return 650;
+    } else if (contentLength > 2000) {
+      return 500;
     }
     return 300;
   }
@@ -255,6 +265,7 @@ console.log(greet('Markdown'));
     getNotes,
     getActiveNote,
     getActiveNoteId,
+    getNoteById,
     getIsComposing,
     getIsSwitchingNote,
     setIsComposing,

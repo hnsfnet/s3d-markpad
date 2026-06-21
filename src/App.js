@@ -323,21 +323,14 @@ export class App extends Component {
   }
 
   handleDeleteFolder(folderId) {
-    const notesInFolder = this.notesHook.getNotesInFolder(folderId).length;
-    const deleted = this.foldersHook.deleteFolder(folderId, notesInFolder);
+    const deleted = this.foldersHook.deleteFolder(folderId, this.notesHook);
     if (!deleted) return;
     
-    if (notesInFolder > 0) {
-      const remainingNotes = this.notesHook.getNotes();
-      if (remainingNotes.length > 0) {
-        if (!this.notesHook.getNoteById(this.notesHook.getActiveNoteId())) {
-          this.notesHook.setActiveNoteId(remainingNotes[0].id);
-          this.renderActiveNote();
-        }
-      } else {
-        this.notesHook.setActiveNoteId(null);
-        this.showEmptyState();
-      }
+    const remainingNotes = this.notesHook.getNotes();
+    if (remainingNotes.length === 0) {
+      this.showEmptyState();
+    } else if (!this.notesHook.getNoteById(this.notesHook.getActiveNoteId())) {
+      this.renderActiveNote();
     }
     
     this.handleSave();

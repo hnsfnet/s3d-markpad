@@ -21,7 +21,7 @@ export function formatDate(timestamp) {
 
 export function extractTitle(content) {
   const firstLine = content.trim().split('\n')[0] || '';
-  const titleMatch = firstLine.match(/^#\s+(.+)$/);
+  const titleMatch = firstLine.match(/^#{1,6}\s+(.+)$/);
   if (titleMatch) return titleMatch[1].trim();
   return firstLine.slice(0, 50) || '无标题笔记';
 }

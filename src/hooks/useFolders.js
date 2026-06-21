@@ -91,9 +91,11 @@ export function useFolders() {
     return false;
   }
 
-  function deleteFolder(folderId, notesInFolder) {
+  function deleteFolder(folderId, notesHook) {
     const folder = getFolderById(folderId);
     if (!folder) return false;
+    
+    const notesInFolder = notesHook ? notesHook.getNotesInFolder(folderId).length : 0;
     
     const confirmMsg = notesInFolder > 0 
       ? `确定要删除文件夹「${folder.name}」吗？该文件夹内的 ${notesInFolder} 篇笔记也会被一起删除。此操作无法撤销。`
@@ -104,6 +106,16 @@ export function useFolders() {
     const { folders, expandedFolders } = getState();
     const newExpanded = new Set(expandedFolders);
     newExpanded.delete(folderId);
+    
+    if (notesHook && notesInFolder > 0) {
+      const notes = notesHook.getNotes();
+      const notesToDelete = notes.filter(n => n.folderId === folderId);
+      const activeNoteId = notesHook.getActiveNoteId();
+      
+      notesToDelete.forEach(note => {
+        notesHook.deleteNote(note.id);
+      });
+    }
     
     setState({
       folders: folders.filter(f => f.id !== folderId),

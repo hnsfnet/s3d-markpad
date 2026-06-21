@@ -1,8 +1,8 @@
 import { escapeHtml } from './helpers.js';
 
 const codeHighlightKeywords = {
-  javascript: ['function', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'return', 'class', 'new', 'import', 'export', 'default', 'from', 'async', 'await', 'try', 'catch', 'throw', 'typeof', 'instanceof', 'null', 'undefined', 'true', 'false', 'this'],
-  python: ['def', 'class', 'if', 'elif', 'else', 'for', 'while', 'return', 'import', 'from', 'as', 'with', 'try', 'except', 'raise', 'None', 'True', 'False', 'and', 'or', 'not', 'in', 'is', 'lambda', 'yield', 'async', 'await'],
+  javascript: ['function', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'return', 'new', 'import', 'export', 'default', 'from', 'async', 'await', 'try', 'catch', 'throw', 'typeof', 'instanceof', 'null', 'undefined', 'true', 'false', 'this'],
+  python: ['def', 'if', 'elif', 'else', 'for', 'while', 'return', 'import', 'from', 'as', 'with', 'try', 'except', 'raise', 'None', 'True', 'False', 'and', 'or', 'not', 'in', 'is', 'lambda', 'yield', 'async', 'await'],
   css: ['@import', '@media', '@keyframes', '@font-face', '!important', 'auto', 'inherit', 'none', 'transparent', 'solid', 'dashed', 'flex', 'grid', 'block', 'inline', 'relative', 'absolute', 'fixed'],
   html: ['<!DOCTYPE', 'html', 'head', 'body', 'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'img', 'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'form', 'input', 'button', 'script', 'style', 'link', 'meta']
 };
@@ -11,15 +11,31 @@ export function highlightCode(code, lang) {
   let highlighted = escapeHtml(code);
   const keywords = codeHighlightKeywords[lang] || [];
   
+  const placeholders = [];
+  let placeholderIndex = 0;
+  
+  function createPlaceholder(content) {
+    const id = `%%PLACEHOLDER${placeholderIndex++}%%`;
+    placeholders.push({ id, content });
+    return id;
+  }
+  
+  highlighted = highlighted.replace(/(["'`])(?:(?!\1)[^\\]|\\.)*?\1/g, match => createPlaceholder(`<span class="hljs-string">${match}</span>`));
+  
+  highlighted = highlighted.replace(/(\/\/.*$|\/\*[\s\S]*?\*\/)/gm, match => createPlaceholder(`<span class="hljs-comment">${match}</span>`));
+  
   keywords.forEach(keyword => {
     const regex = new RegExp('\\b' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g');
-    highlighted = highlighted.replace(regex, '<span class="hljs-keyword">' + keyword + '</span>');
+    highlighted = highlighted.replace(regex, `<span class="hljs-keyword">${keyword}</span>`);
   });
   
-  highlighted = highlighted.replace(/(["'`])(?:(?!\1)[^\\]|\\.)*?\1/g, '<span class="hljs-string">$&</span>');
-  highlighted = highlighted.replace(/(\/\/.*$|\/\*[\s\S]*?\*\/)/gm, '<span class="hljs-comment">$1</span>');
   highlighted = highlighted.replace(/\b(\d+\.?\d*)\b/g, '<span class="hljs-number">$1</span>');
+  
   highlighted = highlighted.replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)(?=\s*\()/g, '<span class="hljs-function">$1</span>');
+  
+  placeholders.forEach(({ id, content }) => {
+    highlighted = highlighted.replace(id, content);
+  });
   
   return highlighted;
 }
@@ -123,7 +139,7 @@ export function parseMarkdown(text) {
     if (inList) { html += '</' + listType + '>'; inList = false; listType = null; }
     if (inBlockquote) { html += '</blockquote>'; inBlockquote = false; }
     
-    if (/^\s*\|.*\|\s*$/.test(line) && i < lines.length - 1 && /^\s*\|[-:]+\|\s*$/.test(lines[i + 1])) {
+    if (/^\s*\|.*\|\s*$/.test(line) && i < lines.length - 1 && /^\s*\|[-:| ]+\|\s*$/.test(lines[i + 1])) {
       const headerCells = line.split('|').filter(c => c.trim() !== '');
       i += 2;
       html += '<table><thead><tr>';
